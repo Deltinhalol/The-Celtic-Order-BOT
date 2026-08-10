@@ -1,0 +1,18 @@
+# Variáveis de ambiente (NUNCA suba isso pro GitHub, é onde fica o token do bot)
+.env
+
+# Backup gerado pelo bot (contém dados do servidor)
+backup_servidor.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
