@@ -7,6 +7,9 @@ import os
 import sys
 import subprocess
 import json
+from dotenv import load_dotenv
+ 
+load_dotenv()
  
 intents = discord.Intents.default()
 intents.message_content = True
@@ -477,7 +480,7 @@ def unban_terminal(user_id):
 def overwrite_para_dict(ow: discord.PermissionOverwrite) -> dict:
     allow, deny = ow.pair()
     return {"allow": allow.value, "deny": deny.value}
-
+ 
 def dict_para_overwrite(d: dict) -> discord.PermissionOverwrite:
     ow = discord.PermissionOverwrite()
     allow = discord.Permissions(d["allow"])
@@ -489,7 +492,7 @@ def dict_para_overwrite(d: dict) -> discord.PermissionOverwrite:
         if valor:
             setattr(ow, nome, False)
     return ow
-
+ 
 async def montar_backup(guild):
     backup = {
         "nome_servidor": guild.name,
@@ -497,7 +500,7 @@ async def montar_backup(guild):
         "categorias": [],
         "canais": [],
     }
-
+ 
     for role in guild.roles:
         if role.name == "@everyone" or role.managed:
             continue
@@ -509,7 +512,7 @@ async def montar_backup(guild):
             "mentionable": role.mentionable,
             "posicao": role.position,
         })
-
+ 
     for cat in guild.categories:
         overwrites = {}
         for alvo, ow in cat.overwrites.items():
@@ -520,7 +523,7 @@ async def montar_backup(guild):
             "posicao": cat.position,
             "overwrites": overwrites,
         })
-
+ 
     for canal in guild.channels:
         if isinstance(canal, discord.CategoryChannel):
             continue
@@ -530,12 +533,12 @@ async def montar_backup(guild):
             tipo = "voz"
         else:
             continue  # ignora tipos não suportados (forum, stage, etc.)
-
+ 
         overwrites = {}
         for alvo, ow in canal.overwrites.items():
             if isinstance(alvo, discord.Role):
                 overwrites[alvo.name] = overwrite_para_dict(ow)
-
+ 
         backup["canais"].append({
             "nome": canal.name,
             "tipo": tipo,
@@ -544,24 +547,24 @@ async def montar_backup(guild):
             "topico": getattr(canal, "topic", None),
             "overwrites": overwrites,
         })
-
+ 
     return backup
-
+ 
 def backup_terminal():
     guild = bot.guilds[0] if bot.guilds else None
     if guild is None:
         print("Bot não está em nenhum servidor.")
         return
-
+ 
     async def executar():
         backup = await montar_backup(guild)
         with open(CAMINHO_BACKUP, "w", encoding="utf-8") as f:
             json.dump(backup, f, ensure_ascii=False, indent=2)
         print(f"✅ Backup salvo em {CAMINHO_BACKUP}")
         print(f"   {len(backup['roles'])} cargos, {len(backup['categorias'])} categorias, {len(backup['canais'])} canais.")
-
+ 
     asyncio.run_coroutine_threadsafe(executar(), bot.loop)
-
+ 
 async def executar_nuke(guild, backup):
     print("💣 Apagando canais...")
     for canal in list(guild.channels):
@@ -569,7 +572,7 @@ async def executar_nuke(guild, backup):
             await canal.delete()
         except Exception as e:
             print(f"   Erro ao apagar canal {canal.name}: {e}")
-
+ 
     print("💣 Apagando cargos...")
     for role in list(guild.roles):
         if role.name == "@everyone" or role.managed:
@@ -578,7 +581,7 @@ async def executar_nuke(guild, backup):
             await role.delete()
         except Exception as e:
             print(f"   Erro ao apagar cargo {role.name}: {e}")
-
+ 
     print("🔨 Recriando cargos...")
     role_map = {}
     for role_data in sorted(backup["roles"], key=lambda r: r["posicao"]):
@@ -593,7 +596,7 @@ async def executar_nuke(guild, backup):
             role_map[role_data["nome"]] = novo
         except Exception as e:
             print(f"   Erro ao criar cargo {role_data['nome']}: {e}")
-
+ 
     print("🔨 Recriando categorias...")
     cat_map = {}
     for cat_data in sorted(backup["categorias"], key=lambda c: c["posicao"]):
@@ -607,7 +610,7 @@ async def executar_nuke(guild, backup):
             cat_map[cat_data["nome"]] = nova
         except Exception as e:
             print(f"   Erro ao criar categoria {cat_data['nome']}: {e}")
-
+ 
     print("🔨 Recriando canais...")
     for canal_data in sorted(backup["canais"], key=lambda c: c["posicao"]):
         overwrites = {}
@@ -628,40 +631,40 @@ async def executar_nuke(guild, backup):
                 )
         except Exception as e:
             print(f"   Erro ao criar canal {canal_data['nome']}: {e}")
-
+ 
     print("✅ Reconstrução concluída. Confira as posições dos cargos/canais — a ordem exata pode precisar de ajuste manual.")
-
+ 
 def nuke_terminal():
     guild = bot.guilds[0] if bot.guilds else None
     if guild is None:
         print("Bot não está em nenhum servidor.")
         return
-
+ 
     if not os.path.exists(CAMINHO_BACKUP):
         print("❌ Nenhum backup encontrado. Rode `!backup` antes de usar `!nuke`.")
         return
-
+ 
     with open(CAMINHO_BACKUP, "r", encoding="utf-8") as f:
         backup = json.load(f)
-
+ 
     print("⚠️  ATENÇÃO: isso vai APAGAR TODOS os canais e cargos do servidor")
     print(f"   e reconstruir com base no backup salvo em {CAMINHO_BACKUP}")
     print(f"   (backup do servidor '{backup['nome_servidor']}', {len(backup['roles'])} cargos, {len(backup['canais'])} canais).")
     print("   Isso NÃO pode ser desfeito.")
-
+ 
     confirm1 = input(f"Digite o nome do servidor ({guild.name}) para confirmar: ")
     if confirm1 != guild.name:
         print("Nome não confere. Operação cancelada.")
         return
-
+ 
     confirm2 = input("Digite CONFIRMAR NUKE para prosseguir: ")
     if confirm2 != "CONFIRMAR NUKE":
         print("Confirmação inválida. Operação cancelada.")
         return
-
+ 
     print("💣 Iniciando nuke e reconstrução...")
     asyncio.run_coroutine_threadsafe(executar_nuke(guild, backup), bot.loop)
-
+ 
 def stop_terminal():
     global encerrar_bot
     encerrar_bot = True
@@ -789,10 +792,10 @@ def escutar_terminal():
  
         elif comando == "!backup":
             backup_terminal()
-
+ 
         elif comando == "!nuke":
             nuke_terminal()
-
+ 
         elif comando == "!stop":
             stop_terminal()
  
@@ -832,3 +835,4 @@ def rodar_bot():
 if __name__ == "__main__":
     rodar_bot()
  # 630 linhas pqp w
+ 
